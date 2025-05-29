@@ -1,0 +1,25 @@
+version: '3.7'
+
+services:
+  casdoor:
+    image: casbin/casdoor-all-in-one
+    ports:
+      - "8000:8000"
+    networks:
+      - casdoor_net
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - casdoor
+    networks:
+      - casdoor_net
+
+networks:
+  casdoor_net:
+    driver: bridge
