@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package ticker;
+
+option java_package = "org.example.web_lab_3.protobuf";
+
+message TickerData {
+  string symbol = 1;
+  string price = 2;
+  int64 eventTime = 3;
+}

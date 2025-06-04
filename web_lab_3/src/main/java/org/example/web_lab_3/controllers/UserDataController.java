@@ -46,7 +46,7 @@ public class UserDataController {
 
             if (userProfile != null) {
                 userInfo.put("fullName", userProfile.get("displayName"));
-                userInfo.put("organizations", userProfile.get("organizations")); // This may need transformation
+                userInfo.put("organizations", userProfile.get("organizations"));
             }
 
             return ResponseEntity.ok(userInfo);

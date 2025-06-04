@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Casdoor OpenID Connect</title>
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs/dist/protobuf.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
@@ -86,6 +87,18 @@
             color: #ff6b6b;
             font-weight: 700;
         }
+        .crypto-up {
+            background-color: #d4f8e8 !important;
+            transition: background-color 0.5s;
+        }
+        .crypto-down {
+            background-color: #ffd6d6 !important;
+            transition: background-color 0.5s;
+        }
+        #crypto-table th, #crypto-table td {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+        }
 
         pre {
             background: #1a2431;
@@ -102,14 +115,87 @@
 <body>
 <div class="container">
     <h1>Casdoor OpenID Connect</h1>
-    <div class="btn-group">
+    <div class="btn-group" style="margin-bottom: 1rem;">
         <button type="button" onclick="login()">Login</button>
         <button type="button" onclick="fetchUserInfo()">Get User Info</button>
     </div>
-    <div id="status">
+    <div id="status" style="margin-bottom: 2rem;">
         <p>Click <strong>"Get User Info"</strong> to check your authentication status.</p>
     </div>
+
+    <div class="crypto-container">
+        <button type="button" onclick="connectMarket()" style="margin-bottom: 1rem;">Show Crypto Prices</button>
+        <table id="crypto-table" style="width: 100%; border-collapse: collapse; text-align: center;">
+            <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Price</th>
+                <th>Time</th>
+            </tr>
+            </thead>
+            <tbody id="crypto-tbody">
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<script>
+    let ws;
+    let TickerDataProto;
+    let previousPrices = {}; // <-- ADD THIS LINE
+
+    protobuf.load("/proto/ticker.proto", function(err, root) {
+        if (err) {
+            console.error("Failed to load proto:", err);
+            return;
+        }
+        TickerDataProto = root.lookupType("ticker.TickerData");
+    });
+
+    function connectMarket() {
+        ws = new WebSocket('wss://localhost:8088/ws/market');
+        ws.binaryType = "arraybuffer";
+        ws.onmessage = function(event) {
+            if (!TickerDataProto) return;
+            const bytes = new Uint8Array(event.data);
+            const msg = TickerDataProto.decode(bytes);
+            // Now use msg.symbol, msg.price, msg.eventTime
+            updateCryptoRow(msg.symbol, msg.price, new Date(Number(msg.eventTime)).toLocaleTimeString());
+        };
+    }
+    function updateCryptoRow(symbol, price, timeStr) {
+        const tbody = document.getElementById('crypto-tbody');
+        let row = document.getElementById('row-' + symbol);
+        let prevPrice = previousPrices[symbol];
+
+        if (!row) {
+            row = document.createElement('tr');
+            row.id = 'row-' + symbol;
+            row.innerHTML = `<td>${symbol}</td><td id="price-${symbol}">${price}</td><td id="time-${symbol}">${timeStr}</td>`;
+            tbody.appendChild(row);
+        } else {
+            document.getElementById('price-' + symbol).innerText = price;
+            document.getElementById('time-' + symbol).innerText = timeStr;
+
+            // Color logic
+            if (prevPrice !== undefined) {
+                if (price > prevPrice) {
+                    row.classList.remove('crypto-down');
+                    row.classList.add('crypto-up');
+                } else if (price < prevPrice) {
+                    row.classList.remove('crypto-up');
+                    row.classList.add('crypto-down');
+                }
+                setTimeout(() => {
+                    row.classList.remove('crypto-up');
+                    row.classList.remove('crypto-down');
+                }, 700);
+            }
+        }
+        previousPrices[symbol] = price;
+    }
+
+</script>
 
 <script>
     function fetchUserInfo() {
@@ -131,9 +217,6 @@
           <p class="success">Logged in as <strong>${data.username}</strong></p>
           <pre>
 User ID: ${data.userId}
-Full Name: ${fullName}
-Organizations:
-${orgList}
           </pre>
         `;
             })
